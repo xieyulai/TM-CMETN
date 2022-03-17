@@ -1,0 +1,13 @@
+data/i3d_25fps_stack64step64_2stream_npy.zip
+data/vggish_npy.zip
+data/vggish_npy/
+data/i3d_25fps_stack64step64_2stream_npy/
+log/
+checkpoint/
+__pycache__
+.vector_cache
+tmp
+data
+.idea
+submodules
+*.swp
