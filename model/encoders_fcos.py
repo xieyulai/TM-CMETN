@@ -58,10 +58,10 @@ class TriModalEncoder(nn.Module):
 
         Av, Va = self.encoder_one((A, V), masks)
 
-        if self.procedure == 'train_prop':
-            Av = upsample(Av, self.cfg.scale_audio)
-            Va = upsample(Va, self.cfg.scale_video)
-
+        # if self.procedure == 'train_prop':
+        Av = upsample(Av, self.cfg.scale_audio)
+        Va = upsample(Va, self.cfg.scale_video)
+ 
         if self.procedure == 'train_cap':
             if Av.shape[1] == Va.shape[1]:
                 pass

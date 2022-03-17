@@ -147,7 +147,7 @@ class Config(object):
         if args.to_log:
             self.log_dir = os.path.join(args.log_dir, args.procedure)
             self.checkpoint_dir = os.path.join(args.checkpoint_dir, args.procedure)
-            exper_name = f'{self.curr_time[2:]}_{self.modality}'
+            exper_name = f'{self.curr_time[2:]}_{self.modality}' + f'_{self.dataset_type}'
             self.log_path = os.path.join(self.log_dir, exper_name)
             self.model_checkpoint_path = os.path.join(self.checkpoint_dir, exper_name)
         else:
