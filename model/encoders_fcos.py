@@ -62,7 +62,7 @@ class TriModalEncoder(nn.Module):
         Av = upsample(Av, self.cfg.scale_audio)
         Va = upsample(Va, self.cfg.scale_video)
  
-        if self.procedure == 'train_cap':
+        if self.procedure != 'train_prop':
             if Av.shape[1] == Va.shape[1]:
                 pass
             elif Av.shape[1] < Va.shape[1]:
@@ -91,7 +91,7 @@ class TriModalEncoder(nn.Module):
         ## T分支上加可学习参数
         Tav = Tav * self.learn_param
 
-        if self.procedure == 'train_cap':
+        if self.procedure != 'train_prop':
             if AVt.shape[1] == Tav.shape[1]:
                 pass
             elif AVt.shape[1] < Tav.shape[1]:
@@ -112,7 +112,7 @@ class TriModalEncoder(nn.Module):
 
         ## caption 降维
         AVT = AVT.permute(0, 2, 1)
-        if self.cfg.procedure == 'train_cap':
+        if self.cfg.procedure != 'train_prop':
             AVT = self.conv_enc_two(AVT)
         AVT = AVT.permute(0, 2, 1)
 

@@ -94,8 +94,8 @@ def eval_on_learned_props_fcos(args):
     cap_model_cpt = torch.load(args.pretrained_cap_model_path, map_location='cpu')
     cfg = cap_model_cpt['config']
     cfg.max_prop_per_vid = args.max_prop_per_vid
-    cfg.device = args.device_ids[0]
-    cfg.inference_batch_size = 64
+    cfg.device = args.device
+    cfg.inference_batch_size = args.inference_batch_size
     cfg.tIoUs = [0.3, 0.5, 0.7, 0.9]
     # in case log_path has moved (remove trailing .best_*_model.pt)
     cfg.log_path = os.path.split(args.pretrained_cap_model_path)[0]

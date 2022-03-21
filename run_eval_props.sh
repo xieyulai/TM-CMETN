@@ -4,8 +4,8 @@ PROCEDURE=evaluate
 
 MODALITY=audio_video_text
 
-pretrained_cap_path=./checkpoint/train_cap/0815142747_audio_video_text/best_cap_model.pt
-prop_result_path=./log/train_prop/1204073452_audio_video_text/submissions/prop_results_val_1_e3_maxprop100.json
+pretrained_cap_path=./checkpoint/train_cap/0319091651_audio_video_text_2000/best_cap_model.pt
+prop_result_path=./log/train_prop/0319091555_audio_video_text_2000/submissions/prop_results_val_1_e17_maxprop100.json
 
 BATCH=64
 
