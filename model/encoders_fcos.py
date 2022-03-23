@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from model.blocks import LayerStack, PositionwiseFeedForward, ResidualConnection, clone
+from model.blocks import LayerStack, PositionwiseFeedForward, ResidualConnection, clone, PositionalEncoder
 from model.multihead_attention import MultiHeadedAttention
 from model.masking import upsample
 
@@ -35,6 +35,8 @@ class TriModalEncoder(nn.Module):
         else:
             self.d_raw_caps = cfg.d_model//2
 
+        self.pos_enc_mid = PositionalEncoder(self.d_model_mid, cfg.dout_p)
+
         self.conv_enc_av_1 = nn.Conv1d(self.d_model_mid, self.d_model_mid, kernel_size=3, stride=2, padding=1)
         self.conv_enc_av_2 = nn.Conv1d(self.d_model_mid, self.d_model_mid, kernel_size=3, stride=2, padding=1)
         self.conv_enc_two = nn.Conv1d(self.d_raw_caps, self.d_raw_caps, kernel_size=3, stride=2, padding=1)
@@ -58,11 +60,11 @@ class TriModalEncoder(nn.Module):
 
         Av, Va = self.encoder_one((A, V), masks)
 
-        # if self.procedure == 'train_prop':
-        Av = upsample(Av, self.cfg.scale_audio)
-        Va = upsample(Va, self.cfg.scale_video)
- 
-        if self.procedure != 'train_prop':
+        if self.procedure == 'train_prop':
+            Av = upsample(Av, self.cfg.scale_audio)
+            Va = upsample(Va, self.cfg.scale_video)
+
+        if self.procedure == 'train_cap':
             if Av.shape[1] == Va.shape[1]:
                 pass
             elif Av.shape[1] < Va.shape[1]:
@@ -85,13 +87,14 @@ class TriModalEncoder(nn.Module):
             AV = self.conv_enc_av_1(AV)
             AV = self.conv_enc_av_2(AV)
         AV = AV.permute(0, 2, 1)
+        AV = self.pos_enc_mid(AV)
 
         AVt, Tav = self.encoder_tow((AV, T), masks)
 
         ## T分支上加可学习参数
         Tav = Tav * self.learn_param
 
-        if self.procedure != 'train_prop':
+        if self.procedure == 'train_cap':
             if AVt.shape[1] == Tav.shape[1]:
                 pass
             elif AVt.shape[1] < Tav.shape[1]:
@@ -112,7 +115,7 @@ class TriModalEncoder(nn.Module):
 
         ## caption 降维
         AVT = AVT.permute(0, 2, 1)
-        if self.cfg.procedure != 'train_prop':
+        if self.cfg.procedure == 'train_cap':
             AVT = self.conv_enc_two(AVT)
         AVT = AVT.permute(0, 2, 1)
 

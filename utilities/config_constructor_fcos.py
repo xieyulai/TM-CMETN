@@ -98,22 +98,17 @@ class Config(object):
         self.H = args.H
         self.d_model = args.d_model
 
-        # if args.use_linear_embedder:
-        #     self.d_model_video = self.d_model
-        #     self.d_model_audio = self.d_model
-        #     self.d_model_text = self.d_model
-        # else:
         self.d_model_video = self.d_vid
         self.d_model_audio = self.d_aud
         self.d_model_text = self.d_text
 
         self.d_model_caps = args.d_model_caps
         if 'video' in self.modality:
-            self.d_ff_video = 4*self.d_model_video if args.d_ff_video is None else args.d_ff_video
+            self.d_ff_video = 2*self.d_model_video if args.d_ff_video is None else args.d_ff_video
         if 'audio' in self.modality:
-            self.d_ff_audio = 4*self.d_model_audio if args.d_ff_audio is None else args.d_ff_audio
+            self.d_ff_audio = 2*self.d_model_audio if args.d_ff_audio is None else args.d_ff_audio
         if 'text' in self.modality:
-            self.d_ff_text = 4*self.d_model_text if args.d_ff_text is None else args.d_ff_text
+            self.d_ff_text = 2*self.d_model_text if args.d_ff_text is None else args.d_ff_text
         self.d_ff_cap = 4*self.d_model_caps if args.d_ff_cap is None else args.d_ff_cap
         # training
         self.device_ids = (args.device_ids)                # [0,1,2]
@@ -147,7 +142,7 @@ class Config(object):
         if args.to_log:
             self.log_dir = os.path.join(args.log_dir, args.procedure)
             self.checkpoint_dir = os.path.join(args.checkpoint_dir, args.procedure)
-            exper_name = f'{self.curr_time[2:]}_{self.modality}' + f'_{self.dataset_type}'
+            exper_name = f'{self.curr_time[2:]}_{self.modality}'
             self.log_path = os.path.join(self.log_dir, exper_name)
             self.model_checkpoint_path = os.path.join(self.checkpoint_dir, exper_name)
         else:
