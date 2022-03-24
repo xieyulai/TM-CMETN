@@ -61,35 +61,35 @@ class TriModalEncoder(nn.Module):
         Av, Va = self.encoder_one((A, V), masks)
 
         # if self.procedure == 'train_prop':
-        Av = upsample(Av, self.cfg.scale_audio)
-        Va = upsample(Va, self.cfg.scale_video)
+        Av_up = upsample(Av, self.cfg.scale_audio)
+        Va_up = upsample(Va, self.cfg.scale_video)
 
         if self.procedure == 'train_cap':
-            if Av.shape[1] == Va.shape[1]:
+            if Av_up.shape[1] == Va_up.shape[1]:
                 pass
-            elif Av.shape[1] < Va.shape[1]:
-                s = Va.shape[1] - Av.shape[1]
+            elif Av_up.shape[1] < Va_up.shape[1]:
+                s = Va_up.shape[1] - Av_up.shape[1]
                 p1d = [0, 0, 0, s]
-                Av = F.pad(Av, p1d, value=0)
-            elif Av.shape[1] > Va.shape[1]:
-                s = Av.shape[1] - Va.shape[1]
+                Av_up = F.pad(Av_up, p1d, value=0)
+            elif Av_up.shape[1] > Va_up.shape[1]:
+                s = Av_up.shape[1] - Va_up.shape[1]
                 p1d = [0, 0, 0, s]
-                Va = F.pad(Va, p1d, value=0)
+                Va_up = F.pad(Va_up, p1d, value=0)
         ## A和V的融合
         if self.cfg.AV_fusion_mode == 'add':
-            AV = torch.add(Av, Va)
+            AV_up = torch.add(Av_up, Va_up)
         else:
-            AV = torch.cat((Av, Va), dim=-1)
+            AV_up = torch.cat((Av_up, Va_up), dim=-1)
 
         ## proposal降维
-        AV = AV.permute(0, 2, 1)
+        AV_up = AV_up.permute(0, 2, 1)
         if self.procedure == 'train_prop':
-            AV = self.conv_enc_av_1(AV)
-            AV = self.conv_enc_av_2(AV)
-        AV = AV.permute(0, 2, 1)
-        AV = self.pos_enc_mid(AV)
+            AV_up = self.conv_enc_av_1(AV_up)
+            AV_up = self.conv_enc_av_2(AV_up)
+        AV_up = AV_up.permute(0, 2, 1)
+        AV_up = self.pos_enc_mid(AV_up)
 
-        AVt, Tav = self.encoder_tow((AV, T), masks)
+        AVt, Tav = self.encoder_tow((AV_up, T), masks)
 
         ## T分支上加可学习参数
         Tav = Tav * self.learn_param
@@ -119,7 +119,7 @@ class TriModalEncoder(nn.Module):
             AVT = self.conv_enc_two(AVT)
         AVT = AVT.permute(0, 2, 1)
 
-        return Av, Va, AVT
+        return Av, Va, Av_up, Va_up, AVT
 
 
 class BiModalEncoderLayer(nn.Module):
