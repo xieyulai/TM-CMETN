@@ -38,13 +38,13 @@ class TriModalDecoderLayer(nn.Module):
 
         def sublayer_self_att(C): return self.self_att(C, C, C, masks['C_mask'])
         def sublayer_enc_att_AVT(C): return self.enc_att_AVT(C, AVT, AVT, None)
-        def sublayer_enc_att_V(C): return self.enc_att_AVT(C, V, V, None)
+        def sublayer_enc_att_V(C): return self.enc_att_V(C, V, V, None)
         sublayer_feed_forward = self.feed_forward
 
         C = self.res_layer_self_att(C, sublayer_self_att)
 
         Cavt = self.res_layer_enc_att_AVT(C, sublayer_enc_att_AVT)
-        Cv = self.res_layer_enc_att_AVT(C, sublayer_enc_att_V)
+        Cv = self.res_layer_enc_att_V(C, sublayer_enc_att_V)
 
         C = torch.cat([Cavt, Cv], dim=-1)
         # bridge: (B, Sc, Dc) <- (B, Sc, 2*Dc)
