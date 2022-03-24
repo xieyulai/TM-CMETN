@@ -9,9 +9,10 @@ from model.masking import upsample
 
 class TriModalEncoder(nn.Module):
 
-    def __init__(self, cfg, d_model_A, d_model_V, d_model_T, d_model, dout_p, d_ff_A, d_ff_V, d_ff_T):
+    def __init__(self, cfg, d_model_A, d_model_V, d_model_T, d_model, dout_p, d_ff_A, d_ff_V, d_ff_T, uni_dim='conv'):
         super(TriModalEncoder, self).__init__()
         self.cfg = cfg
+        self.uni_dim = uni_dim
         self.procedure = cfg.procedure
         self.modality = cfg.modality
         self.d_model_A = d_model_A
@@ -34,6 +35,15 @@ class TriModalEncoder(nn.Module):
             self.d_raw_caps = cfg.d_model//4
         else:
             self.d_raw_caps = cfg.d_model//2
+
+        ## 线性层统一维度
+        if self.uni_dim == 'linear':
+            self.linear_A = nn.Linear(d_model_A, d_model//4)
+            self.linear_V = nn.Linear(d_model_V, d_model//4)
+        ## 1维卷积, 参数量少
+        else:
+            self.convd_A = nn.Conv1d(d_model_A, d_model//4, kernel_size=1, stride=1, padding=0)
+            self.convd_V = nn.Conv1d(d_model_V, d_model//4, kernel_size=1, stride=1, padding=0)
 
         self.pos_enc_mid = PositionalEncoder(self.d_model_mid, cfg.dout_p)
 
@@ -58,11 +68,19 @@ class TriModalEncoder(nn.Module):
         """
         A, V, T = x
 
+        ## 1st CM-ENC
         Av, Va = self.encoder_one((A, V), masks)
 
-        # if self.procedure == 'train_prop':
-        Av_up = upsample(Av, self.cfg.scale_audio)
-        Va_up = upsample(Va, self.cfg.scale_video)
+        ## 统一特征维度
+        if self.uni_dim == 'linear':
+            Av_uni, Va_uni = self.linear_A(Av), self.linear_V(Va)
+        else:
+            Av_uni, Va_uni = self.convd_A(Av.permute(0, 2, 1)), self.convd_V(Va.permute(0, 2, 1))
+            Av_uni, Va_uni = Av_uni.permute(0, 2, 1), Va_uni.permute(0, 2, 1)
+
+        ## 时序语义对齐
+        Av_up = upsample(Av_uni, self.cfg.scale_audio)
+        Va_up = upsample(Va_uni, self.cfg.scale_video)
 
         if self.procedure == 'train_cap':
             if Av_up.shape[1] == Va_up.shape[1]:
@@ -75,51 +93,61 @@ class TriModalEncoder(nn.Module):
                 s = Av_up.shape[1] - Va_up.shape[1]
                 p1d = [0, 0, 0, s]
                 Va_up = F.pad(Va_up, p1d, value=0)
+
         ## A和V的融合
         if self.cfg.AV_fusion_mode == 'add':
-            AV_up = torch.add(Av_up, Va_up)
+            AV_fus = torch.add(Av_up, Va_up)
         else:
-            AV_up = torch.cat((Av_up, Va_up), dim=-1)
+            AV_fus = torch.cat((Av_up, Va_up), dim=-1)
 
         ## proposal降维
-        AV_up = AV_up.permute(0, 2, 1)
+        AV_fus = AV_fus.permute(0, 2, 1)
         if self.procedure == 'train_prop':
-            AV_up = self.conv_enc_av_1(AV_up)
-            AV_up = self.conv_enc_av_2(AV_up)
-        AV_up = AV_up.permute(0, 2, 1)
-        AV_up = self.pos_enc_mid(AV_up)
+            AV_fus = self.conv_enc_av_1(AV_fus)
+            AV_fus = self.conv_enc_av_2(AV_fus)
+        AV_fus = AV_fus.permute(0, 2, 1)
+        AV_fus = self.pos_enc_mid(AV_fus)
 
-        AVt, Tav = self.encoder_tow((AV_up, T), masks)
+        ## 2nd CM-ENC
+        AVt, Tav = self.encoder_tow((AV_fus, T), masks)
+
+        ## 统一特征维度
+        if self.uni_dim == 'linear':
+            AVt_uni, Tav_uni = self.linear_A(AVt), self.linear_V(Tav)
+        else:
+            AVt_uni, Tav_uni = self.convd_A(AVt.permute(0, 2, 1)), self.convd_V(Tav.permute(0, 2, 1))
+            AVt_uni, Tav_uni = AVt_uni.permute(0, 2, 1), Tav_uni.permute(0, 2, 1)
 
         ## T分支上加可学习参数
-        Tav = Tav * self.learn_param
+        Tav_uni = Tav_uni * self.learn_param
 
         if self.procedure == 'train_cap':
-            if AVt.shape[1] == Tav.shape[1]:
+            if AVt_uni.shape[1] == Tav_uni.shape[1]:
                 pass
-            elif AVt.shape[1] < Tav.shape[1]:
-                s = Tav.shape[1] - AVt.shape[1]
+            elif AVt_uni.shape[1] < Tav_uni.shape[1]:
+                s = Tav_uni.shape[1] - AVt_uni.shape[1]
                 p1d = [0, 0, 0, s]
-                AVt = F.pad(AVt, p1d, value=0)
-            elif AVt.shape[1] > Tav.shape[1]:
-                s = AVt.shape[1] - Tav.shape[1]
+                AVt_uni = F.pad(AVt_uni, p1d, value=0)
+            elif AVt_uni.shape[1] > Tav_uni.shape[1]:
+                s = AVt_uni.shape[1] - Tav_uni.shape[1]
                 p1d = [0, 0, 0, s]
-                Tav = F.pad(Tav, p1d, value=0)
+                Tav_uni = F.pad(Tav_uni, p1d, value=0)
         else:
-            AVt = upsample(AVt, 4)
+            AVt_uni = upsample(AVt_uni, 4)
+
         ## AV和T的融合
         if self.cfg.AVT_fusion_mode == 'add':
-            AVT = torch.add(AVt, Tav)
+            AVT_fus = torch.add(AVt_uni, Tav_uni)
         else:
-            AVT = torch.cat((AVt, Tav), dim=-1)
+            AVT_fus = torch.cat((AVt_uni, Tav_uni), dim=-1)
 
-        ## caption 降维
-        AVT = AVT.permute(0, 2, 1)
+        ## caption降维
+        AVT_fus = AVT_fus.permute(0, 2, 1)
         if self.cfg.procedure == 'train_cap':
-            AVT = self.conv_enc_two(AVT)
-        AVT = AVT.permute(0, 2, 1)
+            AVT_fus = self.conv_enc_two(AVT_fus)
+        AVT_fus = AVT_fus.permute(0, 2, 1)
 
-        return Av, Va, Av_up, Va_up, AVT
+        return Av, Va, Av_up, Va_up, AVT_fus
 
 
 class BiModalEncoderLayer(nn.Module):
@@ -173,20 +201,10 @@ class BiModalEncoderLayer(nn.Module):
 
 class BiModalEncoderOne(nn.Module):
 
-    def __init__(self, d_model_A, d_model_V, d_model, dout_p, H, N, d_ff_A, d_ff_V, uni_dim='conv'):
+    def __init__(self, d_model_A, d_model_V, d_model, dout_p, H, N, d_ff_A, d_ff_V):
         super(BiModalEncoderOne, self).__init__()
-        self.uni_dim = uni_dim
         layer_AV = BiModalEncoderLayer(d_model_A, d_model_V, d_model, dout_p, H, d_ff_A, d_ff_V)
         self.encoder_AV = LayerStack(layer_AV, N)  # N=2
-
-        ## 线性层统一维度
-        if self.uni_dim == 'linear':
-            self.linear_A = nn.Linear(d_model_A, d_model//4)
-            self.linear_V = nn.Linear(d_model_V, d_model//4)
-        ## 1维卷积, 参数量少
-        else:
-            self.convd_A = nn.Conv1d(d_model_A, d_model//4, kernel_size=1, stride=1, padding=0)
-            self.convd_V = nn.Conv1d(d_model_V, d_model//4, kernel_size=1, stride=1, padding=0)
 
     def forward(self, x, masks: dict):
         '''
@@ -200,31 +218,15 @@ class BiModalEncoderOne(nn.Module):
 
         Av, Va = self.encoder_AV((A, V), (masks['A_mask'], masks['V_mask']))
 
-        if self.uni_dim == 'linear':
-            Av, Va = self.linear_A(Av), self.linear_V(Va)
-        else:
-            Av, Va = self.convd_A(Av.permute(0, 2, 1)), self.convd_V(Va.permute(0, 2, 1))
-            Av, Va = Av.permute(0, 2, 1), Va.permute(0, 2, 1)
-
         return Av, Va
 
 
 class BiModalEncoderTow(nn.Module):
 
-    def __init__(self, d_model_AV, d_model_T, d_model, dout_p, H, N, d_ff_AV, d_ff_T, uni_dim='conv'):
+    def __init__(self, d_model_AV, d_model_T, d_model, dout_p, H, N, d_ff_AV, d_ff_T):
         super(BiModalEncoderTow, self).__init__()
-        self.uni_dim = uni_dim
         layer_AVT = BiModalEncoderLayer(d_model_AV, d_model_T, d_model, dout_p, H, d_ff_AV, d_ff_T)
         self.encoder_AVT = LayerStack(layer_AVT, N)  # N=2
-
-        ## 统一维度
-        if self.uni_dim == 'linear':
-            self.linear_AV = nn.Linear(d_model_AV, d_model//4)
-            self.linear_T = nn.Linear(d_model_T, d_model//4)
-        ## 1维卷积, 参数量少
-        else:
-            self.convd_AV = nn.Conv1d(d_model_AV, d_model//4, kernel_size=1, stride=1, padding=0)
-            self.convd_T = nn.Conv1d(d_model_T, d_model//4, kernel_size=1, stride=1, padding=0)
 
     def forward(self, x, masks: dict):
         '''
@@ -237,11 +239,5 @@ class BiModalEncoderTow(nn.Module):
         AV, T = x
 
         AVt, Tav = self.encoder_AVT((AV, T), (None, masks['T_mask']))
-
-        if self.uni_dim == 'linear':
-            AVt, Tav = self.linear_AV(AVt), self.linear_T(Tav)
-        else:
-            AVt, Tav = self.convd_AV(AVt.permute(0, 2, 1)), self.convd_T(Tav.permute(0, 2, 1))
-            AVt, Tav = AVt.permute(0, 2, 1), Tav.permute(0, 2, 1)
 
         return AVt, Tav

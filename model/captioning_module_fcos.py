@@ -159,7 +159,7 @@ class TriModalTransformer(nn.Module):
             cap_model_cpt = torch.load(cfg.pretrained_prop_model_path, map_location='cpu')
             pre_cfg = cap_model_cpt['config']
             self.encoder = TriModalEncoder(pre_cfg, pre_cfg.d_model_audio, pre_cfg.d_model_video,
-                                           pre_cfg.d_model_text, pre_cfg.d_model, pre_cfg.dout_p)
+                                           pre_cfg.d_model_text, pre_cfg.d_model, pre_cfg.dout_p, pre_cfg.d_ff_audio, pre_cfg.d_ff_video, pre_cfg.d_ff_text)
             encoder_weights = {k: v for k, v in cap_model_cpt['model_state_dict'].items() if 'encoder' in k}
             encoder_weights = {k.replace('encoder.', ''): v for k, v in encoder_weights.items()}
             self.encoder.load_state_dict(encoder_weights)
