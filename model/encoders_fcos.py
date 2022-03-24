@@ -38,12 +38,16 @@ class TriModalEncoder(nn.Module):
 
         ## 线性层统一维度
         if self.uni_dim == 'linear':
-            self.linear_A = nn.Linear(d_model_A, d_model//4)
-            self.linear_V = nn.Linear(d_model_V, d_model//4)
+            self.linear_A = nn.Linear(self.d_model_A, self.d_model//4)
+            self.linear_V = nn.Linear(self.d_model_V, self.d_model//4)
+            self.linear_AV = nn.Linear(self.d_model_mid, self.d_model//4)
+            self.linear_T = nn.Linear(self.d_model_T, self.d_model//4)
         ## 1维卷积, 参数量少
         else:
-            self.convd_A = nn.Conv1d(d_model_A, d_model//4, kernel_size=1, stride=1, padding=0)
-            self.convd_V = nn.Conv1d(d_model_V, d_model//4, kernel_size=1, stride=1, padding=0)
+            self.convd_A = nn.Conv1d(self.d_model_A, self.d_model//4, kernel_size=1, stride=1, padding=0)
+            self.convd_V = nn.Conv1d(self.d_model_V, self.d_model//4, kernel_size=1, stride=1, padding=0)
+            self.convd_AV = nn.Conv1d(self.d_model_mid, self.d_model//4, kernel_size=1, stride=1, padding=0)
+            self.convd_T = nn.Conv1d(self.d_model_T, self.d_model//4, kernel_size=1, stride=1, padding=0)
 
         self.pos_enc_mid = PositionalEncoder(self.d_model_mid, cfg.dout_p)
 
@@ -113,9 +117,9 @@ class TriModalEncoder(nn.Module):
 
         ## 统一特征维度
         if self.uni_dim == 'linear':
-            AVt_uni, Tav_uni = self.linear_A(AVt), self.linear_V(Tav)
+            AVt_uni, Tav_uni = self.linear_AV(AVt), self.linear_T(Tav)
         else:
-            AVt_uni, Tav_uni = self.convd_A(AVt.permute(0, 2, 1)), self.convd_V(Tav.permute(0, 2, 1))
+            AVt_uni, Tav_uni = self.convd_AV(AVt.permute(0, 2, 1)), self.convd_T(Tav.permute(0, 2, 1))
             AVt_uni, Tav_uni = AVt_uni.permute(0, 2, 1), Tav_uni.permute(0, 2, 1)
 
         ## T分支上加可学习参数
