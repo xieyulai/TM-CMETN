@@ -144,7 +144,7 @@ class TriModalTransformer(nn.Module):
 
         self.encoder = TriModalEncoder(cfg, cfg.d_model_audio, cfg.d_model_video, cfg.d_model_text, cfg.d_model, cfg.dout_p, cfg.d_ff_audio, cfg.d_ff_video, cfg.d_ff_text)
 
-        self.decoder = TriModelDecoder(self.d_raw_caps, cfg.d_model_video, cfg.d_model_caps, cfg.d_model, cfg.dout_p, cfg.H, cfg.N, cfg.d_ff_cap)
+        self.decoder = TriModelDecoder(self.d_raw_caps, cfg.d_model_audio, cfg.d_model_video, cfg.d_model_caps, cfg.d_model, cfg.dout_p, cfg.H, cfg.N, cfg.d_ff_cap)
 
         self.generator = GeneratorFCOS(cfg.d_model_caps, train_dataset.trg_voc_size)
 
@@ -185,7 +185,7 @@ class TriModalTransformer(nn.Module):
 
         Av, Va, Av_up, Va_up, AVT = self.encoder((A, V, T), masks)
 
-        C = self.decoder((C, (Va, AVT)), masks)
+        C = self.decoder((C, (Av, Va, AVT)), masks)
 
         C = self.generator(C)
 
