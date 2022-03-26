@@ -1018,7 +1018,6 @@ class TrimodalProposalGeneratorFCOS(nn.Module):
         A = src['audio']
         V = src['rgb'] + src['flow']
         T = src['text']
-        # print(A.shape, V.shape, T.shape)
 
         # １、特征预处理
         # (B, Sm, Dm)-->(B, Sm, Dm), m in (v,a,t)
@@ -1030,14 +1029,14 @@ class TrimodalProposalGeneratorFCOS(nn.Module):
         T = self.pos_enc_T(T)
 
         # ２、特征融合编码
-        Av, Va, AVT = self.encoder((A, V, T), masks)
+        Av, Va, Av_up, Va_up, AVT = self.encoder((A, V, T), masks)
 
         # 3、fcos实现proposal训练
-        props_Av, loss_Av, losses_Av = self.fcos_prop(self.backbone_Av, self.fpn_Av, self.head_Av, Av, targets)
-        props_Va, loss_Va, losses_Va = self.fcos_prop(self.backbone_Va, self.fpn_Va, self.head_Va, Va,targets)
+        props_Av, loss_Av, losses_Av = self.fcos_prop(self.backbone_Av, self.fpn_Av, self.head_Av, Av_up, targets)
+        props_Va, loss_Va, losses_Va = self.fcos_prop(self.backbone_Va, self.fpn_Va, self.head_Va, Va_up,targets)
         props_AVT, loss_AVT, losses_AVT = self.fcos_prop(self.backbone_AVT, self.fpn_AVT, self.head_AVT, AVT,targets)
 
-        total_loss = loss_Av + loss_Va + 0.0001*loss_AVT
+        total_loss = 0.5*loss_Av + loss_Va + 0.5*loss_AVT
 
         # combine predictions,all_predictions=(B,10*48*800+10*128*300,2)
         all_predictions = torch.cat([props_Av, props_Va, props_AVT], dim=1)
