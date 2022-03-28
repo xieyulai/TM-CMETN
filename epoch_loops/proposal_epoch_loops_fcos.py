@@ -98,6 +98,7 @@ def train_av_loop_fcos(cfg, model, optimizer, train_loader, epoch, TBoard):
 
         masks = multi_make_masks(batch['feature_stacks'], None, train_loader.dataset.pad_idx)
         predictions, batch_loss, losses_Av, losses_Va, losses_AVT = model(batch['feature_stacks'], batch['targets'], masks)
+        # predictions, batch_loss, _, _, losses_AVT = model(batch['feature_stacks'], batch['targets'], masks)
         loss_acc_Av = add_dict_to_another_dict(losses_Av, loss_acc_Av)
         loss_acc_Va = add_dict_to_another_dict(losses_Va, loss_acc_Va)
         loss_acc_AVT = add_dict_to_another_dict(losses_AVT, loss_acc_AVT)
