@@ -926,18 +926,18 @@ class TrimodalProposalGeneratorFCOS(nn.Module):
         self.positions = FCOSPositions(cfg, cfg.strides_fcos)
 
         # Backbone network
-        self.backbone_Av = BackBone(self.d_model_mid, self.C3_inplanes, self.C4_inplanes, self.C5_inplanes)
-        self.backbone_Va = BackBone(self.d_model_mid, self.C3_inplanes, self.C4_inplanes, self.C5_inplanes)
+        # self.backbone_Av = BackBone(self.d_model_mid, self.C3_inplanes, self.C4_inplanes, self.C5_inplanes)
+        # self.backbone_Va = BackBone(self.d_model_mid, self.C3_inplanes, self.C4_inplanes, self.C5_inplanes)
         self.backbone_AVT = BackBone(self.d_raw_fcos, self.C3_inplanes, self.C4_inplanes, self.C5_inplanes)
 
         # FPN network
-        self.fpn_Av = FPN(self.C3_inplanes, self.C4_inplanes, self.C5_inplanes, self.planes, use_p5=True)
-        self.fpn_Va = FPN(self.C3_inplanes, self.C4_inplanes, self.C5_inplanes, self.planes, use_p5=True)
+        # self.fpn_Av = FPN(self.C3_inplanes, self.C4_inplanes, self.C5_inplanes, self.planes, use_p5=True)
+        # self.fpn_Va = FPN(self.C3_inplanes, self.C4_inplanes, self.C5_inplanes, self.planes, use_p5=True)
         self.fpn_AVT = FPN(self.C3_inplanes, self.C4_inplanes, self.C5_inplanes, self.planes, use_p5=True)
 
         # Heads network
-        self.head_Av = FCOSRegCenterClsHead(self.layer_norm, self.planes, self.dout_p)
-        self.head_Va = FCOSRegCenterClsHead(self.layer_norm, self.planes, self.dout_p)
+        # self.head_Av = FCOSRegCenterClsHead(self.layer_norm, self.planes, self.dout_p)
+        # self.head_Va = FCOSRegCenterClsHead(self.layer_norm, self.planes, self.dout_p)
         self.head_AVT = FCOSRegCenterClsHead(self.layer_norm, self.planes, self.dout_p)
 
         self.bce_loss = nn.BCELoss()
@@ -1032,19 +1032,19 @@ class TrimodalProposalGeneratorFCOS(nn.Module):
         Av, Va, Av_up, Va_up, AVT = self.encoder((A, V, T), masks)
 
         # 3、fcos实现proposal训练
-        props_Av, loss_Av, losses_Av = self.fcos_prop(self.backbone_Av, self.fpn_Av, self.head_Av, Av_up, targets)
-        props_Va, loss_Va, losses_Va = self.fcos_prop(self.backbone_Va, self.fpn_Va, self.head_Va, Va_up,targets)
+        # props_Av, loss_Av, losses_Av = self.fcos_prop(self.backbone_Av, self.fpn_Av, self.head_Av, Av_up, targets)
+        # props_Va, loss_Va, losses_Va = self.fcos_prop(self.backbone_Va, self.fpn_Va, self.head_Va, Va_up,targets)
         props_AVT, loss_AVT, losses_AVT = self.fcos_prop(self.backbone_AVT, self.fpn_AVT, self.head_AVT, AVT,targets)
 
-        total_loss = loss_Av + loss_Va + loss_AVT
-        # total_loss = loss_AVT
+        # total_loss = loss_Av + loss_Va + loss_AVT
+        total_loss = loss_AVT
 
         # combine predictions,all_predictions=(B,10*48*800+10*128*300,2)
-        all_predictions = torch.cat([props_Av, props_Va, props_AVT], dim=1)
-        # all_predictions = props_AVT
+        # all_predictions = torch.cat([props_Av, props_Va, props_AVT], dim=1)
+        all_predictions = props_AVT
 
-        return all_predictions, total_loss, losses_Av, losses_Va, losses_AVT
-        # return all_predictions, total_loss, None, None, losses_AVT
+        # return all_predictions, total_loss, losses_Av, losses_Va, losses_AVT
+        return all_predictions, total_loss, None, None, losses_AVT
 
 
 def get_batch_position_annotations(cfg, preds, reg_heads, all_points_position, targets, timespan):

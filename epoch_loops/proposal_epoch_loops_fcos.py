@@ -97,10 +97,10 @@ def train_av_loop_fcos(cfg, model, optimizer, train_loader, epoch, TBoard):
         optimizer.zero_grad()
 
         masks = multi_make_masks(batch['feature_stacks'], None, train_loader.dataset.pad_idx)
-        predictions, batch_loss, losses_Av, losses_Va, losses_AVT = model(batch['feature_stacks'], batch['targets'], masks)
-        # predictions, batch_loss, _, _, losses_AVT = model(batch['feature_stacks'], batch['targets'], masks)
-        loss_acc_Av = add_dict_to_another_dict(losses_Av, loss_acc_Av)
-        loss_acc_Va = add_dict_to_another_dict(losses_Va, loss_acc_Va)
+        # predictions, batch_loss, losses_Av, losses_Va, losses_AVT = model(batch['feature_stacks'], batch['targets'], masks)
+        predictions, batch_loss, _, _, losses_AVT = model(batch['feature_stacks'], batch['targets'], masks)
+        # loss_acc_Av = add_dict_to_another_dict(losses_Av, loss_acc_Av)
+        # loss_acc_Va = add_dict_to_another_dict(losses_Va, loss_acc_Va)
         loss_acc_AVT = add_dict_to_another_dict(losses_AVT, loss_acc_AVT)
 
         batch_loss.backward()
@@ -109,17 +109,17 @@ def train_av_loop_fcos(cfg, model, optimizer, train_loader, epoch, TBoard):
         train_total_loss += batch_loss.item()
 
     train_total_loss /= len(train_loader)
-    loss_acc_Av = {k: v / len(train_loader) for k, v in loss_acc_Av.items()}
-    loss_acc_Va = {k: v / len(train_loader) for k, v in loss_acc_Va.items()}
+    # loss_acc_Av = {k: v / len(train_loader) for k, v in loss_acc_Av.items()}
+    # loss_acc_Va = {k: v / len(train_loader) for k, v in loss_acc_Va.items()}
     loss_acc_AVT = {k: v / len(train_loader) for k, v in loss_acc_AVT.items()}
 
     if TBoard is not None:
         TBoard.add_scalar('debug/loss_epoch', train_total_loss, epoch)
         TBoard.add_scalar('debug/lr', get_lr(optimizer), epoch)
-        for loss_name, value in loss_acc_Av.items():
-            TBoard.add_scalar(f'debug/train_{loss_name}_Av', value, epoch)
-        for loss_name, value in loss_acc_Va.items():
-            TBoard.add_scalar(f'debug/train_{loss_name}_Va', value, epoch)
+        # for loss_name, value in loss_acc_Av.items():
+        #     TBoard.add_scalar(f'debug/train_{loss_name}_Av', value, epoch)
+        # for loss_name, value in loss_acc_Va.items():
+        #     TBoard.add_scalar(f'debug/train_{loss_name}_Va', value, epoch)
         for loss_name, value in loss_acc_AVT.items():
             TBoard.add_scalar(f'debug/train_{loss_name}_AVT', value, epoch)
     else:
