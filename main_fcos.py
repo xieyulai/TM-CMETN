@@ -130,8 +130,8 @@ if __name__ == "__main__":
 
     parser.add_argument('--obj_coeff', type=float, default=1, help='objectness coeff in loss')
     parser.add_argument('--noobj_coeff', type=float, default=100, help='noobjectness coeff in loss')
-    parser.add_argument('--reg_coeff', type=float, default=10, help='regression coeff in loss')
-    parser.add_argument('--cen_coeff', type=float, default=0.01,help='centerness coeff in loss')
+    parser.add_argument('--reg_coeff', type=float, default=1, help='regression coeff in loss')
+    parser.add_argument('--cen_coeff', type=float, default=1,help='centerness coeff in loss')
 
     parser.add_argument('--pad_audio_feats_up_to', type=int, default=800,
                         help='max feature length to pad other features to')
