@@ -59,10 +59,10 @@ class TriModalEncoder(nn.Module):
                                              self.dout_p, self.H, self.N, self.d_ff_A, self.d_ff_V)
         self.encoder_tow = BiModalEncoderTow(self.d_model_mid, self.d_model_T, self.d_model,
                                              self.dout_p, self.H, self.N, self.d_model_mid*4, self.d_ff_T)
-        # if cfg.dataset_type == 2000:
-        #     self.learn_param = nn.Parameter(data=torch.FloatTensor([1.0]).to(cfg.device), requires_grad=False)
-        # else:
-        self.learn_param = nn.Parameter(data=torch.FloatTensor([1.0]).to(cfg.device), requires_grad=False)
+        if cfg.dataset_type == 2000:
+            self.learn_param = nn.Parameter(data=torch.FloatTensor([1.0]).to(cfg.device), requires_grad=False)
+        else:
+            self.learn_param = nn.Parameter(data=torch.FloatTensor([1.0]).to(cfg.device), requires_grad=True)
 
     def forward(self, x, masks):
         """
