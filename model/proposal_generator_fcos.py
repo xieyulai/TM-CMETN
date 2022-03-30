@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 import math
 import json
+import pdb
 
 from model.encoders_fcos import TriModalEncoder, BiModalEncoderOne
 from model.blocks import FeatureEmbedder, Identity, PositionalEncoder
@@ -339,7 +340,7 @@ def compute_one_video_giou_loss(per_image_reg_preds, per_image_targets, obj_mask
     # use center_ness_targets as the weight of gious loss
     gious_loss = gious_loss * center_ness_targets
     gious_loss = gious_loss.sum() / positive_points_num
-    gious_loss = 2. * gious_loss  # 最后乘以2是为了平衡回归loss与其他loss的数量级。
+    gious_loss = gious_loss  # 最后乘以2是为了平衡回归loss与其他loss的数量级。
     #print('gious_loss:\n', gious_loss)
 
     return gious_loss
@@ -863,7 +864,6 @@ class BimodalProposalGeneratorFCOSNoEncoder(nn.Module):
                 # Total Loss
             batch_av_loss = (self.cfg.reg_coeff * reg_loss + self.cfg.cen_coeff * centerness_loss + loss_conf) / B
 
-            print('batch_loss:\n', reg_loss / B, centerness_loss / B, loss_conf / B)
             losses_dict = {
                 'reg_loss': reg_loss / B,
                 'centerness_loss': centerness_loss / B,
@@ -926,18 +926,18 @@ class TrimodalProposalGeneratorFCOS(nn.Module):
         self.positions = FCOSPositions(cfg, cfg.strides_fcos)
 
         # Backbone network
-        # self.backbone_Av = BackBone(self.d_model_mid, self.C3_inplanes, self.C4_inplanes, self.C5_inplanes)
-        # self.backbone_Va = BackBone(self.d_model_mid, self.C3_inplanes, self.C4_inplanes, self.C5_inplanes)
+        self.backbone_Av = BackBone(self.d_model_mid, self.C3_inplanes, self.C4_inplanes, self.C5_inplanes)
+        self.backbone_Va = BackBone(self.d_model_mid, self.C3_inplanes, self.C4_inplanes, self.C5_inplanes)
         self.backbone_AVT = BackBone(self.d_raw_fcos, self.C3_inplanes, self.C4_inplanes, self.C5_inplanes)
 
         # FPN network
-        # self.fpn_Av = FPN(self.C3_inplanes, self.C4_inplanes, self.C5_inplanes, self.planes, use_p5=True)
-        # self.fpn_Va = FPN(self.C3_inplanes, self.C4_inplanes, self.C5_inplanes, self.planes, use_p5=True)
+        self.fpn_Av = FPN(self.C3_inplanes, self.C4_inplanes, self.C5_inplanes, self.planes, use_p5=True)
+        self.fpn_Va = FPN(self.C3_inplanes, self.C4_inplanes, self.C5_inplanes, self.planes, use_p5=True)
         self.fpn_AVT = FPN(self.C3_inplanes, self.C4_inplanes, self.C5_inplanes, self.planes, use_p5=True)
 
         # Heads network
-        # self.head_Av = FCOSRegCenterClsHead(self.layer_norm, self.planes, self.dout_p)
-        # self.head_Va = FCOSRegCenterClsHead(self.layer_norm, self.planes, self.dout_p)
+        self.head_Av = FCOSRegCenterClsHead(self.layer_norm, self.planes, self.dout_p)
+        self.head_Va = FCOSRegCenterClsHead(self.layer_norm, self.planes, self.dout_p)
         self.head_AVT = FCOSRegCenterClsHead(self.layer_norm, self.planes, self.dout_p)
 
         self.bce_loss = nn.BCELoss()
@@ -982,8 +982,9 @@ class TrimodalProposalGeneratorFCOS(nn.Module):
             batch_targets[:, :, 2] = torch.sigmoid(batch_targets[:, :, 2])
 
             reg_loss = torch.tensor([0.], device=preds.device)
-            centerness_loss = torch.tensor([0.], device=preds.device)
-            loss_conf = torch.tensor([0.], device=preds.device)
+            center_loss = torch.tensor([0.], device=preds.device)
+            loss_obj = torch.tensor([0.], device=preds.device)
+            loss_noobj = torch.tensor([0.], device=preds.device)
             for prediction, trg, obj_mask, noobj_mask, target_obj in zip(preds, batch_targets, objs_mask, noobjs_mask, targets_obj):
                 trg = trg.to(prediction.device)
                 l_r = prediction[:, 0:2]
@@ -992,20 +993,22 @@ class TrimodalProposalGeneratorFCOS(nn.Module):
                 # centerness loss
                 pred_center = prediction[:, 2]
                 targets_center = trg[:, 2]
-                centerness_loss += self.bce_loss(pred_center[obj_mask], targets_center[obj_mask])
+                center_loss += self.bce_loss(pred_center[obj_mask], targets_center[obj_mask])
 
                 # confidence loss
                 score = prediction[:, 4]
-                loss_obj = self.bce_loss(score[obj_mask], target_obj[obj_mask])
-                loss_noobj = self.bce_loss(score[noobj_mask], target_obj[noobj_mask])
-                loss_conf += self.cfg.obj_coeff * loss_obj + self.cfg.noobj_coeff * loss_noobj
+                loss_obj += self.bce_loss(score[obj_mask], target_obj[obj_mask])
+                loss_noobj += self.bce_loss(score[noobj_mask], target_obj[noobj_mask])
 
-            batch_av_loss = (self.cfg.reg_coeff * reg_loss + self.cfg.cen_coeff * centerness_loss + loss_conf) / B
+            batch_av_loss = (self.cfg.reg_coeff * reg_loss + self.cfg.cen_coeff * center_loss +
+                             self.obj_coeff * loss_obj + self.noobj_coeff * loss_noobj) / B
 
             losses_dict = {
-                'reg_loss': reg_loss / B,
-                'centerness_loss': centerness_loss / B,
-                'loss_conf': loss_conf / B}
+                'loss_reg': reg_loss / B,
+                'loss_cen': center_loss / B,
+                'loss_obj': loss_obj / B,
+                'loss_noobj': loss_noobj / B,
+            }
 
         return predictions, batch_av_loss, losses_dict
 
@@ -1032,19 +1035,19 @@ class TrimodalProposalGeneratorFCOS(nn.Module):
         Av, Va, Av_up, Va_up, AVT = self.encoder((A, V, T), masks)
 
         # 3、fcos实现proposal训练
-        # props_Av, loss_Av, losses_Av = self.fcos_prop(self.backbone_Av, self.fpn_Av, self.head_Av, Av_up, targets)
-        # props_Va, loss_Va, losses_Va = self.fcos_prop(self.backbone_Va, self.fpn_Va, self.head_Va, Va_up,targets)
+        props_Av, loss_Av, losses_Av = self.fcos_prop(self.backbone_Av, self.fpn_Av, self.head_Av, Av_up, targets)
+        props_Va, loss_Va, losses_Va = self.fcos_prop(self.backbone_Va, self.fpn_Va, self.head_Va, Va_up,targets)
         props_AVT, loss_AVT, losses_AVT = self.fcos_prop(self.backbone_AVT, self.fpn_AVT, self.head_AVT, AVT,targets)
 
-        # total_loss = loss_Av + loss_Va + loss_AVT
-        total_loss = loss_AVT
+        total_loss = loss_Av + loss_Va + loss_AVT
+        # total_loss = loss_AVT
 
         # combine predictions,all_predictions=(B,10*48*800+10*128*300,2)
-        # all_predictions = torch.cat([props_Av, props_Va, props_AVT], dim=1)
-        all_predictions = props_AVT
+        all_predictions = torch.cat([props_Av, props_Va, props_AVT], dim=1)
+        # all_predictions = props_AVT
 
-        # return all_predictions, total_loss, losses_Av, losses_Va, losses_AVT
-        return all_predictions, total_loss, None, None, losses_AVT
+        return all_predictions, total_loss, losses_Av, losses_Va, losses_AVT
+        # return all_predictions, total_loss, None, None, losses_AVT
 
 
 def get_batch_position_annotations(cfg, preds, reg_heads, all_points_position, targets, timespan):
