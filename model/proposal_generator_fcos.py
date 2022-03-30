@@ -1001,7 +1001,7 @@ class TrimodalProposalGeneratorFCOS(nn.Module):
                 loss_noobj += self.bce_loss(score[noobj_mask], target_obj[noobj_mask])
 
             batch_av_loss = (self.cfg.reg_coeff * reg_loss + self.cfg.cen_coeff * center_loss +
-                             self.obj_coeff * loss_obj + self.noobj_coeff * loss_noobj) / B
+                             self.cfg.obj_coeff * loss_obj + self.cfg.noobj_coeff * loss_noobj) / B
 
             losses_dict = {
                 'loss_reg': reg_loss / B,
@@ -1039,7 +1039,7 @@ class TrimodalProposalGeneratorFCOS(nn.Module):
         props_Va, loss_Va, losses_Va = self.fcos_prop(self.backbone_Va, self.fpn_Va, self.head_Va, Va_up,targets)
         props_AVT, loss_AVT, losses_AVT = self.fcos_prop(self.backbone_AVT, self.fpn_AVT, self.head_AVT, AVT,targets)
 
-        total_loss = loss_Av + loss_Va + loss_AVT
+        total_loss = loss_Av + loss_Va + 0.5 * loss_AVT
         # total_loss = loss_AVT
 
         # combine predictions,all_predictions=(B,10*48*800+10*128*300,2)
