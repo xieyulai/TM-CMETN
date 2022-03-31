@@ -81,7 +81,7 @@ def check_args(cfg):
     if 'video' in cfg.modality:
         assert os.path.exists(cfg.video_features_path), f'{cfg.video_features_path}'
     if 'text' in cfg.modality:
-        assert os.path.exists(cfg.global_text_features_path), f'{cfg.global_text_features_path}'
+        assert os.path.exists(cfg.align_text_features_path), f'{cfg.align_text_features_path}'
 
 
 class Config(object):
@@ -104,7 +104,7 @@ def eval_on_learned_props_fcos(args):
     if 'video' in cfg.modality:
         cfg.video_features_path = args.video_features_path
     if 'text' in cfg.modality:
-        cfg.global_text_features_path = args.global_text_features_path
+        cfg.align_text_features_path = args.align_text_features_path
 
     check_args(cfg)
 
