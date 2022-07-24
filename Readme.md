@@ -5,7 +5,25 @@ Code and data for the paper [Tri-modal Dense Video Captioning Based on Fine-Grai
 
 Please cite the following paper if you use this repository in your research.
 ```
-Under construction
+@article{doi:10.1142/S021800142255014X,
+author = {Niu, Jingjing and Xie, Yulai and Zhang, Yang and Zhang, Jinyu and Zhang, Yanfei and Lei, Xiao and Ren, Fang},
+title = {Tri-modal Dense Video Captioning Based on Fine-Grained Aligned Text and Anchor-Free Event Proposals Generator},
+journal = {International Journal of Pattern Recognition and Artificial Intelligence},
+volume = {0},
+number = {ja},
+pages = {null},
+year = {0},
+doi = {10.1142/S021800142255014X},
+
+URL = { 
+        https://doi.org/10.1142/S021800142255014X
+    
+},
+eprint = { 
+        https://doi.org/10.1142/S021800142255014X
+    
+}
+
 ```
 
 
